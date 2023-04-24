@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "phonetree"
+version = "1.0.0"
+authors = [
+  { name="Leandro Lima", email="leandro@lls-software.com" },
+]
+description = "A phone-tree like menu system for text-based interfaces"
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Communications :: Chat",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "rapidfuzz>=2.13.7"
+]
+
+[project.urls]
+"Homepage" = "https://github.com/leandropls/phonetree"
+"Bug Tracker" = "https://github.com/leandropls/phonetree/issues"
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+
+[tool.black]
+line-length = 100
