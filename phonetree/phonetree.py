@@ -7,7 +7,7 @@ from rapidfuzz.distance import Indel
 
 __all__ = ["menu", "Ask", "Tell"]
 
-Ask = Callable[[str], str]
+Ask = Callable[[str], str | None]
 
 Tell = Callable[[str], None]
 
@@ -93,6 +93,10 @@ class Menu(NextProtocol):
         question = "Please select an option:\n" + "\n".join(self._menu)
         while True:
             question_answer = ask(question)
+
+            if question_answer is None:
+                return None, state
+
             try:
                 return self._get_item(question_answer), state
             except KeyError:
