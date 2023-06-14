@@ -217,7 +217,7 @@ class Action(NextProtocol):
 
         :param state: The current state of the menu system.
         :param ask: An instance of the Ask object used for questions to the user.
-        :param tell: An instance of the Tell object used to communicate information to 
+        :param tell: An instance of the Tell object used to communicate information to
             the user.
         :return: A tuple containing the next menu object and the updated state.
         """
