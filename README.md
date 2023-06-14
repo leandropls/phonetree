@@ -68,7 +68,11 @@ To define an action within a menu, use the `@menu.action("Action Name")` decorat
 
 ### Handling User Input and Output
 
-Menu and action functions can take optional "ask" and "tell" callbacks. The "ask" function sends some text to the user and expects an answer, returning the answer as the response of the function call. The "tell" function just sends some text to the user and doesn't return anything back. Both functions are recognized by their names in the menu/action functions argument list.
+Menu and action functions can take optional "ask" and "tell" callbacks.
+
+The "ask" function sends some text to the user and expects an answer, returning the answer as the response of the function call. If the function returns `None`, the program execution is ended.
+
+The "tell" function just sends some text to the user and doesn't return anything back. Both functions are recognized by their names in the menu/action functions argument list.
 
 ### State Management
 
