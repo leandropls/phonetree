@@ -53,27 +53,33 @@ class Menu(NextProtocol):
     def __init__(
         self,
         parent: Menu | None = None,
+        include_exit: bool = False,
+        include_exit_on_submenus: bool = False,
     ) -> None:
         """
         Initialize method for the Menu class.
 
         :param parent: The parent menu object if any, defaults to None
+        :param include_exit: Whether to include an Exit option in the menu, defaults to False
+        :param include_exit_on_submenus: Whether to include an Exit option in submenus, defaults to False
         """
         self._items: list[tuple[str, Menu | Action]] = []
         self.parent: Menu | None = parent
+        self.include_exit: bool = include_exit
+        self.include_exit_on_submenus: bool = include_exit_on_submenus
         self.callback: NormalizedActionCallback | None = None
 
     @property
     def _items_list(self) -> Sequence[tuple[str, Menu | Action | None]]:
         """
-        Get the list of menu items including the parent menu or Exit option.
+        Get the list of menu items including the parent menu and / or Exit option.
 
         :return: A list containing tuples with menu item names and their corresponding Menu or Action objects
         """
         items: list[tuple[str, Menu | Action | None]] = list(self._items)
         if (parent := self.parent) is not None:
             items.append(("Return to previous menu", parent))
-        else:
+        if parent is None or self.include_exit:
             items.append(("Exit", None))
         return items
 
@@ -118,14 +124,31 @@ class Menu(NextProtocol):
         self.callback = normalize_callback(callback) if callback is not None else None
         return self
 
-    def menu(self, name: str) -> Menu:
+    def menu(
+        self,
+        name: str,
+        include_exit: bool | None = None,
+        include_exit_on_submenus: bool | None = None,
+    ) -> Menu:
         """
         Add a submenu to the current menu.
 
         :param name: The name of the submenu
+        :param include_exit: Whether to include an Exit option in the submenu,
+            defaults to self.include_exit_on_submenus
+        :param include_exit_on_submenus: Whether to include an Exit option in submenus,
+            defaults to self.include_exit_on_submenus
         :return: The submenu object
         """
-        submenu = Menu(parent=self)
+        submenu = Menu(
+            parent=self,
+            include_exit=include_exit
+            if include_exit is not None
+            else self.include_exit_on_submenus,
+            include_exit_on_submenus=include_exit_on_submenus
+            if include_exit_on_submenus is not None
+            else self.include_exit_on_submenus,
+        )
         self._items.append((name, submenu))
         return submenu
 
