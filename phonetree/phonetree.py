@@ -212,8 +212,17 @@ class Menu(NextProtocol):
             current, state = current.next(state, ask, tell)
 
 
-def menu() -> Menu:
-    return Menu()
+def menu(
+    include_exit: bool = False,
+    include_exit_on_submenus: bool = False,
+) -> Menu:
+    """
+    Create a new menu.
+
+    :param include_exit: Whether to include an Exit option in the menu, defaults to False
+    :param include_exit_on_submenus: Whether to include an Exit option in submenus, defaults to False
+    """
+    return Menu(include_exit=include_exit, include_exit_on_submenus=include_exit_on_submenus)
 
 
 class Action(NextProtocol):
