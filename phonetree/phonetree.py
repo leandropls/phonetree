@@ -5,7 +5,7 @@ from typing import Any, Callable, Iterator, Protocol, Sequence
 
 from rapidfuzz.distance import Indel
 
-__all__ = ["menu", "Ask", "Tell"]
+__all__ = ["menu", "Ask", "Tell", "Flow"]
 
 Ask = Callable[[str], str | None]
 
@@ -15,7 +15,7 @@ ActionCallback = Callable[..., Any]
 
 
 class NormalizedActionCallback(Protocol):
-    def __call__(self, state: Any, ask: Ask, tell: Tell) -> Any:
+    def __call__(self, state: Any, ask: Ask, tell: Tell, flow: Flow) -> Any:
         """
         Represents a callback function with a normalized action.
 
@@ -26,6 +26,7 @@ class NormalizedActionCallback(Protocol):
         :param state: The current state of the application or system.
         :param ask: The method to ask questions or make requests to the user.
         :param tell: The method to send messages or information to the user.
+        :param flow: The flow object controlling the flow of the application.
         :return: The resulting state after the specific action has been taken.
         """
         ...
@@ -47,6 +48,16 @@ def similarity(s1: str, s2: str) -> float:
 class NextProtocol(Protocol):
     def next(self, state: Any, ask: Ask, tell: Tell) -> tuple[Menu | Action | None, Any]:
         ...
+
+
+class Flow:
+    """Controls the flow of the menu system."""
+
+    __slots__ = ("next",)
+
+    # noinspection PyShadowingBuiltins
+    def __init__(self, next: Menu | Action) -> None:
+        self.next = next
 
 
 class Menu(NextProtocol):
@@ -182,7 +193,7 @@ class Menu(NextProtocol):
         """
         # Trigger the callback if it's set
         if (callback := self.callback) is not None:
-            state = callback(state, ask, tell)
+            state = callback(state, ask, tell, Flow(self))
 
         # Display the menu options to the user
         question = "Please select an option:\n" + "\n".join(self._menu)
@@ -243,7 +254,7 @@ class Action(NextProtocol):
         state: Any,
         ask: Ask,
         tell: Tell,
-    ) -> tuple[Menu, Any]:
+    ) -> tuple[Menu | Action, Any]:
         """
         Executes the action callback and provides a next menu and updated state.
 
@@ -253,9 +264,10 @@ class Action(NextProtocol):
             the user.
         :return: A tuple containing the next menu object and the updated state.
         """
+        flow = Flow(self.parent)
         if (callback := self.callback) is not None:
-            state = callback(state, ask=ask, tell=tell)
-        return self.parent, state
+            state = callback(state, ask=ask, tell=tell, flow=flow)
+        return flow.next, state
 
     def __call__(self, callback: ActionCallback) -> Action:
         """
@@ -271,45 +283,40 @@ class Action(NextProtocol):
 
 def normalize_callback(callback: ActionCallback) -> NormalizedActionCallback:
     """
-    Normalize a given callback function to have `state`, `ask`, and `tell` as parameters. The
-    given callback may have fewer parameters (e.g. only `state`, only `ask`, etc.).
+    Normalize a given callback function to have `state`, `ask`, `tell`, and `flow` as arguments. The
+    given callback may have only `state` as positional argument and `ask`, `tell` and `action` as keyword arguments.
 
     :param callback: The callback function to normalize.
-    :return: The normalized callback function, accepting `state`, `ask`, and `tell` as parameters.
-    :raises ValueError: If the given callback function has an unsupported number of parameters or
+    :return: The normalized callback function, accepting `state`, `ask`, `tell`, and 'action' as arguments.
+    :raises ValueError: If the given callback function has unsupported number of arguments or
         an invalid signature.
     """
     signature = inspect.signature(callback)
     parameters = signature.parameters
-    if len(parameters) == 3:
-        # Case when the callback already has the correct signature
-        return callback
-    elif len(parameters) == 2:
-        # Case when the callback has 2 parameters, we need to find which parameters are present
-        if "ask" in parameters and "tell" not in parameters:
-            # def callback(state: Any, ask: Ask) -> Any:
-            return lambda state, ask, tell: callback(state, ask=ask)
-        elif "ask" not in parameters and "tell" in parameters:
-            # def callback(state: Any, tell: Tell) -> Any:
-            return lambda state, ask, tell: callback(state, tell=tell)
-        elif "ask" in parameters and "tell" in parameters:
-            # def callback(ask: Ask, tell: Tell) -> Any:
-            return lambda state, ask, tell: callback(ask=ask, tell=tell)
-        else:
-            raise ValueError("wrong callback signature")
-    elif len(parameters) == 1:
-        # Case when the callback has 1 parameter, we need to find which parameter is present
-        if "ask" in parameters:
-            # def callback(ask: Ask) -> Any:
-            return lambda state, ask, tell: callback(ask=ask)
-        elif "tell" in parameters:
-            # def callback(tell: Tell) -> Any:
-            return lambda state, ask, tell: callback(tell=tell)
-        else:
-            # def callback(state: Any) -> Any:
-            return lambda state, ask, tell: callback(state)
-    elif len(parameters) == 0:
-        # Case when the callback has no parameters, we provide a lambda version with parameters
-        return lambda state, ask, tell: callback()
+    kwargs = []
+
+    params = list(parameters.keys())
+
+    if len(params) > 0 and params[0] not in ("ask", "tell", "flow"):
+        params.pop(0)
+        hasState = True
     else:
-        raise ValueError("wrong callback signature")
+        hasState = False
+
+    while params:
+        param = params.pop(0)
+        if param not in ("ask", "tell", "flow"):
+            raise ValueError("Unsupported argument in callback function: {}".format(param))
+        kwargs.append(param)
+
+    def normalized_callback(state: Any, ask: Ask, tell: Tell, flow: Flow) -> Any:
+        callbackLocals = locals()
+        return callback(
+            *((state,) if hasState else ()),
+            **{k: callbackLocals[k] for k in kwargs},
+        )
+
+    normalized_callback.__name__ = callback.__name__
+    normalized_callback.__doc__ = callback.__doc__
+
+    return normalized_callback
